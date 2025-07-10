@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Table de Lancer de Dés D&D Multijoueur</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            margin: 0;
+            padding: 1rem;
+        }
+        .container {
+            display: flex;
+            gap: 2rem;
+            max-width: 1200px;
+            margin: auto;
+            flex-wrap: wrap;
+        }
+        .dice-roller {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+            flex: 1;
+            min-width: 320px;
+        }
+        .feed {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            flex: 2;
+            min-width: 320px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        h1, h2 {
+            color: #8B0000;
+        }
+        input, select, .dice-btn, .roll-button {
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            font-size: 1rem;
+            box-sizing: border-box;
+            margin-bottom: 1rem;
+        }
+        .dice-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(50px, 1fr));
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .dice-btn {
+            cursor: pointer;
+            border: 2px solid #8B0000;
+            background-color: #fff;
+            color: #8B0000;
+            transition: background-color 0.3s, color 0.3s;
+        }
+        .dice-btn:hover, .dice-btn.active {
+            background-color: #8B0000;
+            color: white;
+        }
+        .roll-button {
+            font-weight: bold;
+            cursor: pointer;
+            background-color: #28a745;
+            color: white;
+            border: none;
+        }
+        .roll-entry {
+            border-bottom: 1px solid #eee;
+            padding: 1rem 0.5rem;
+        }
+        .roll-entry:first-child {
+            border-top: 1px solid #eee;
+        }
+        .roll-player {
+            font-weight: bold;
+            color: #8B0000;
+        }
+        .roll-total {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+        .roll-details {
+            font-size: 0.9rem;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="dice-roller">
+            <h1>Lanceur de Dés</h1>
+            <input type="text" id="player-name" placeholder="Entrez votre nom">
+
+            <div class="dice-buttons">
+                <button class="dice-btn" data-sides="4">D4</button>
+                <button class="dice-btn" data-sides="6">D6</button>
+                <button class="dice-btn" data-sides="8">D8</button>
+                <button class="dice-btn" data-sides="10">D10</button>
+                <button class="dice-btn" data-sides="12">D12</button>
+                <button class="dice-btn active" data-sides="20">D20</button>
+            </div>
+
+            <div>
+                <input type="number" id="num-dice" value="1" min="1">
+                <input type="number" id="modifier" value="0">
+            </div>
+
+            <button class="roll-button" onclick="rollDice()">Lancer !</button>
+        </div>
+
+        <div class="feed">
+            <h2>Lancers des Joueurs en Direct</h2>
+            <div id="rolls-feed"></div>
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <script>
+       // Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyC-u1rq3HP3UXHK2Cwq7-IzarCEUmE7rd0",
+  authDomain: "lanceur-de-des.firebaseapp.com",
+  databaseURL: "https://lanceur-de-des-default-rtdb.firebaseio.com",
+  projectId: "lanceur-de-des",
+  storageBucket: "lanceur-de-des.firebasestorage.app",
+  messagingSenderId: "791325761444",
+  appId: "1:791325761444:web:80ae4829dab95c829eeb31"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+        const database = firebase.database();
+        const rollsRef = database.ref('rolls');
+
+        let selectedSides = 20;
+
+        const diceButtons = document.querySelectorAll('.dice-btn');
+        diceButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                diceButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                selectedSides = parseInt(button.getAttribute('data-sides'));
+            });
+        });
+
+        function rollDice() {
+            const playerName = document.getElementById('player-name').value || 'Anonyme';
+            if (!playerName) {
+                alert('Veuillez entrer votre nom !');
+                return;
+            }
+            
+            const numDice = parseInt(document.getElementById('num-dice').value) || 1;
+            const modifier = parseInt(document.getElementById('modifier').value) || 0;
+            
+            let total = 0;
+            let individualRolls = [];
+
+            for (let i = 0; i < numDice; i++) {
+                const roll = Math.floor(Math.random() * selectedSides) + 1;
+                individualRolls.push(roll);
+                total += roll;
+            }
+
+            const finalTotal = total + modifier;
+            
+            let detailsText = `${numDice}d${selectedSides} : (${individualRolls.join(' + ')})`;
+            if (modifier !== 0) {
+                detailsText += (modifier > 0 ? ` + ${modifier}` : ` - ${Math.abs(modifier)}`);
+            }
+
+            // Envoyer le lancer à la base de données
+            rollsRef.push({
+                playerName: playerName,
+                total: finalTotal,
+                details: detailsText,
+                timestamp: firebase.database.ServerValue.TIMESTAMP
+            });
+        }
+
+        // Écouter les nouveaux lancers
+        rollsRef.limitToLast(10).on('child_added', (snapshot) => {
+            const roll = snapshot.val();
+            const feed = document.getElementById('rolls-feed');
+            
+            const entry = document.createElement('div');
+            entry.classList.add('roll-entry');
+            entry.innerHTML = `
+                <p><span class="roll-player">${roll.playerName}</span> a lancé : <span class="roll-total">${roll.total}</span></p>
+                <p class="roll-details">${roll.details}</p>
+            `;
+            
+            // Ajoute le nouveau lancer en haut de la liste
+            feed.prepend(entry);
+        });
+
+    </script>
+
+</body>
+</html>
