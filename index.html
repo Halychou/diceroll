@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Simple D&D Dice Roller</title>
+  <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" rel="stylesheet">
+  <style>
+    body { 
+      font-family: 'MedievalSharp', cursive; 
+      max-width: 800px; 
+      margin: 0 auto; 
+      padding: 20px;
+    }
+    .dice-controls { 
+      background: #f5f5f5; 
+      padding: 15px; 
+      border-radius: 5px; 
+      margin: 20px 0; 
+    }
+    .history { 
+      border: 1px solid #ddd; 
+      min-height: 200px; 
+      padding: 10px; 
+      border-radius: 5px;
+    }
+    .player-list { 
+      display: flex; 
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .player {
+      background: #e0e0e0;
+      padding: 5px 10px;
+      border-radius: 3px;
+    }
+    .roll-entry {
+      margin: 5px 0;
+      padding: 5px;
+      border-bottom: 1px solid #eee;
+    }
+    button {
+      background: #4a5568;
+      color: white;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 3px;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #2d3748;
+    }
+    input, select {
+      padding: 5px;
+      border: 1px solid #ddd;
+      border-radius: 3px;
+    }
+  </style>
+</head>
+<body>
+  <h1>D&D Dice Roller</h1>
+  
+  <div class="nickname-entry">
+    <input type="text" id="nickname" placeholder="Enter your nickname">
+    <button id="join-btn">Join Game</button>
+  </div>
+  
+  <div class="dice-controls" style="display:none;">
+    <select id="dice-type">
+      <option value="4">d4</option>
+      <option value="6">d6</option>
+      <option value="8">d8</option>
+      <option value="10">d10</option>
+      <option value="12">d12</option>
+      <option value="20" selected>d20</option>
+      <option value="100">d100</option>
+    </select>
+    
+    <input type="number" id="dice-count" min="1" max="10" value="1" style="width: 50px;">
+    <span>+</span>
+    <input type="number" id="modifier" value="0" style="width: 60px;">
+    
+    <button id="roll-btn">Roll Dice</button>
+  </div>
+  
+  <div class="player-list">
+    <h3>Players Online:</h3>
+    <div id="players"></div>
+  </div>
+  
+  <div class="history">
+    <h3>Roll History:</h3>
+    <div id="roll-history"></div>
+  </div>
+  
+  <script src="https://www.gstatic.com/firebasejs/8.2.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.2.0/firebase-database.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
