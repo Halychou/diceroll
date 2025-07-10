@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>D&D Dice Roller</title>
+  <link href="https://fonts.googleapis.com/css2?family=MedievalSharp&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'MedievalSharp', cursive;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    h1 {
+      color: #4a2b0f;
+      text-align: center;
+    }
+    #game-area {
+      background-color: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    button, input, select {
+      padding: 8px;
+      margin: 5px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      background-color: #4a5568;
+      color: white;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #2d3748;
+    }
+    #players {
+      margin: 15px 0;
+      padding: 10px;
+      background-color: #edf2f7;
+      border-radius: 5px;
+    }
+    #roll-history {
+      border: 1px solid #ddd;
+      padding: 10px;
+      margin-top: 20px;
+      border-radius: 5px;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .roll-entry {
+      margin: 5px 0;
+      padding: 5px;
+      border-bottom: 1px solid #eee;
+    }
+    #nickname-section {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    #dice-controls {
+      display: none;
+      text-align: center;
+      margin: 20px 0;
+    }
+    .refresh-btn {
+      background-color: #38a169;
+      margin-left: 10px;
+    }
+    .player-count {
+      font-weight: bold;
+      color: #2b6cb0;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-area">
+    <h1>🎲 D&D Dice Roller</h1>
+    
+    <div id="nickname-section">
+      <input type="text" id="nickname" placeholder="Your Name">
+      <button onclick="joinGame()">Join Game</button>
+    </div>
+    
+    <div id="dice-controls">
+      <select id="dice-type">
+        <option value="4">d4</option>
+        <option value="6">d6</option>
+        <option value="8">d8</option>
+        <option value="10">d10</option>
+        <option value="12">d12</option>
+        <option value="20" selected>d20</option>
+        <option value="100">d100</option>
+      </select>
+      <input type="number" id="dice-count" value="1" min="1" max="10" style="width: 50px;">
+      <span>+</span>
+      <input type="number" id="modifier" value="0" style="width: 60px;">
+      <button onclick="rollDice()">Roll!</button>
+    </div>
+    
+    <div id="players">
+      <h3>Players Online: <span class="player-count">0</span>
+        <button class="refresh-btn" onclick="refreshPlayers()">⟳ Refresh</button>
+      </h3>
+      <div id="players-list"></div>
+    </div>
+    <div id="roll-history"><h3>Roll History:</h3></div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/8.2.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/8.2.0/firebase-database.js"></script>
+  <script>
+    // Your Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyC-u1rq3HP3UXHK2Cwq7-IzarCEUmE7rd0",
+      authDomain: "lanceur-de-des.firebaseapp.com",
+      databaseURL: "https://lanceur-de-des-default-rtdb.firebaseio.com",
+      projectId: "lanceur-de-des",
+      storageBucket: "lanceur-de-des.firebasestorage.app",
+      messagingSenderId: "791325761444",
+      appId: "1:791325761444:web:80ae4829dab95c829eeb31"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    let currentUser = null;
+    let lastRollKey = null;
+
+    function joinGame() {
+      const name = document.getElementById("nickname").value.trim();
+      if (!name) {
+        alert("Please enter your name!");
+        return;
+      }
+      
+      currentUser = {
+        id: Date.now().toString(),
+        name: name
+      };
+      
+      // Show dice controls
+      document.getElementById("nickname-section").style.display = "none";
+      document.getElementById("dice-controls").style.display = "block";
+      
+      // Add player to Firebase
+      database.ref("players/" + currentUser.id).set({
+        name: name,
+        online: true
+      });
+      
+      // Remove player when they leave
+      window.addEventListener("beforeunload", function() {
+        database.ref("players/" + currentUser.id).update({ online: false });
+      });
+      
+      // Listen for new rolls
+      database.ref("rolls").limitToLast(10).on("child_added", function(snapshot) {
+        const roll = snapshot.val();
+        if (snapshot.key !== lastRollKey) {
+          lastRollKey = snapshot.key;
+          addRollToHistory(roll);
+        }
+      });
+      
+      // Initial player load
+      refreshPlayers();
+      
+      // Auto-refresh players every 30 seconds
+      setInterval(refreshPlayers, 30000);
+    }
+
+    function refreshPlayers() {
+      database.ref("players").once("value").then(function(snapshot) {
+        const playersList = document.getElementById("players-list");
+        playersList.innerHTML = "";
+        const players = snapshot.val() || {};
+        let playerCount = 0;
+        
+        Object.keys(players).forEach(function(key) {
+          if (players[key].online) {
+            playerCount++;
+            const playerElement = document.createElement("div");
+            playerElement.textContent = players[key].name;
+            playersList.appendChild(playerElement);
+          }
+        });
+        
+        document.querySelector(".player-count").textContent = playerCount;
+      });
+    }
+
+    function rollDice() {
+      if (!currentUser) {
+        alert("Please join the game first!");
+        return;
+      }
+      
+      const diceType = parseInt(document.getElementById("dice-type").value);
+      const diceCount = parseInt(document.getElementById("dice-count").value);
+      const modifier = parseInt(document.getElementById("modifier").value);
+      
+      // Calculate rolls
+      const rolls = [];
+      let total = modifier;
+      
+      for (let i = 0; i < diceCount; i++) {
+        const roll = Math.floor(Math.random() * diceType) + 1;
+        rolls.push(roll);
+        total += roll;
+      }
+      
+      // Save roll to Firebase
+      const newRollRef = database.ref("rolls").push();
+      newRollRef.set({
+        player: currentUser.name,
+        dice: diceCount + "d" + diceType,
+        modifier: modifier,
+        rolls: rolls,
+        total: total,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      });
+      
+      // Store this key so we don't duplicate it
+      lastRollKey = newRollRef.key;
+    }
+
+    function addRollToHistory(roll) {
+      const historyDiv = document.getElementById("roll-history");
+      const rollDiv = document.createElement("div");
+      rollDiv.className = "roll-entry";
+      
+      // Format modifier display
+      let modifierText = "";
+      if (roll.modifier > 0) {
+        modifierText = " + " + roll.modifier;
+      } else if (roll.modifier < 0) {
+        modifierText = " - " + Math.abs(roll.modifier);
+      }
+      
+      rollDiv.innerHTML = `
+        <strong>${roll.player}</strong> rolled 
+        ${roll.dice}${modifierText}: 
+        ${roll.rolls.join(", ")} = <strong>${roll.total}</strong>
+      `;
+      
+      // Add to top of history
+      historyDiv.insertBefore(rollDiv, historyDiv.children[1]);
+      
+      // Limit to 10 rolls
+      if (historyDiv.children.length > 11) {
+        historyDiv.removeChild(historyDiv.lastChild);
+      }
+    }
+  </script>
+</body>
+</html>
